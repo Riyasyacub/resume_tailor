@@ -1,0 +1,110 @@
+<div class="stepline">
+  <span class="step step-on">1 &middot; Input</span>
+  <span class="step">2 &middot; Confirm</span>
+  <span class="step">3 &middot; Download</span>
+</div>
+
+<h1>Tailor your resume to one job description</h1>
+<p class="lede">
+  We read the posting, find the terms it asks for that your resume doesn't use, and
+  ask you which ones you actually have. Only what you confirm gets added.
+</p>
+
+<%= form_with url: analyze_path, method: :post, multipart: true, class: "card",
+              data: { turbo: false, loading: "Reading the posting and checking it against your resume…" } do %>
+
+  <fieldset>
+    <legend>Model</legend>
+
+    <div class="row">
+      <label class="field">
+        <span>Provider</span>
+        <select name="provider" id="provider">
+          <% LlmClient::PROVIDERS.each do |key, meta| %>
+            <option value="<%= key %>"
+                    data-default-model="<%= meta[:default_model] %>"
+                    data-hint="<%= meta[:key_hint] %>"
+                    <%= "selected" if @provider == key %>>
+              <%= meta[:label] %>
+            </option>
+          <% end %>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Model <em>editable</em></span>
+        <input type="text" name="model" id="model" value="<%= @model %>"
+               placeholder="<%= LlmClient::PROVIDERS.dig(@provider.to_s.to_sym, :default_model) || LlmClient::PROVIDERS[@provider][:default_model] %>">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>API key</span>
+      <input type="password" name="api_key" id="api_key" autocomplete="off"
+             placeholder="<%= @has_key ? '•••••••• saved in this browser session' : LlmClient::PROVIDERS[@provider][:key_hint] %>">
+      <small>
+        Stored in your browser session only, never in the database.
+        <%# The form= attribute targets the separate form rendered below. A button_to
+            here would emit a nested <form>, which browsers resolve by closing this
+            one early — taking the file input and submit button out with it. %>
+        <% if @has_key %>
+          <button type="submit" form="forget_key_form" class="linkish">Forget it</button>
+        <% end %>
+      </small>
+    </label>
+  </fieldset>
+
+  <%# Carries the saved draft so a retry after a provider error reuses the resume
+      we already parsed. Browsers cannot repopulate a file input for security
+      reasons, so the text is kept server-side instead. %>
+  <%= hidden_field_tag :draft_id, @draft&.id %>
+
+  <fieldset>
+    <legend>Your resume</legend>
+
+    <% if @draft&.resume_attached? %>
+      <p class="kept">
+        Still using <strong><%= @draft.source_filename %></strong> from your last attempt.
+        Attach a different file below only if you want to replace it.
+      </p>
+    <% end %>
+
+    <label class="field">
+      <input type="file" name="resume" accept=".pdf,.docx,.txt,.md"
+             <%= "required" unless @draft&.resume_attached? %>>
+      <small>PDF, DOCX, or TXT. Read in memory and discarded — the file itself is never saved.</small>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Job description</legend>
+    <label class="field">
+      <textarea name="jd_text" rows="14" required
+                placeholder="Paste the full job posting here — responsibilities and requirements included."><%= @draft&.jd_text %></textarea>
+    </label>
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Analyse the posting</button>
+  <p class="muted small">This makes one call to your chosen provider and takes 10–30 seconds.</p>
+<% end %>
+
+<%# Kept outside the main form on purpose — see the note by the "Forget it" button. %>
+<% if @has_key %>
+  <%= form_with url: forget_key_path, method: :delete, id: "forget_key_form", data: { turbo: false } do %><% end %>
+<% end %>
+
+<script>
+  // Swap the model placeholder and key hint when the provider changes.
+  (function () {
+    var provider = document.getElementById("provider");
+    var model    = document.getElementById("model");
+    var apiKey   = document.getElementById("api_key");
+
+    provider.addEventListener("change", function () {
+      var opt = provider.options[provider.selectedIndex];
+      model.value = "";
+      model.placeholder = opt.dataset.defaultModel;
+      apiKey.placeholder = opt.dataset.hint;
+    });
+  })();
+</script>

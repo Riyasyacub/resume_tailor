@@ -1,0 +1,96 @@
+<div class="stepline">
+  <span class="step step-done">1 &middot; Input</span>
+  <span class="step step-on">2 &middot; Confirm</span>
+  <span class="step">3 &middot; Download</span>
+</div>
+
+<% if @tailor_session.generated? %>
+  <div class="kept">
+    Your previous answers are still ticked below. Change them and regenerate, or
+    <%= link_to "go back to the resume you already generated", result_path(@tailor_session) %>.
+  </div>
+<% end %>
+
+<h1>Which of these do you actually have?</h1>
+<p class="lede">
+  <strong><%= @tailor_session.jd_title %></strong> asks for <%= @tailor_session.keywords.size %> things.
+  Your resume already covers <strong><%= @tailor_session.present_keywords.size %></strong> of them.
+  Tick only what is genuinely true — anything you leave unticked will never appear in the output.
+</p>
+
+<div class="coverage">
+  <div class="coverage-bar">
+    <div class="coverage-fill" style="width: <%= @tailor_session.baseline_coverage %>%"></div>
+  </div>
+  <span class="coverage-label"><%= @tailor_session.baseline_coverage %>% JD keyword coverage right now</span>
+</div>
+
+<% if @tailor_session.present_keywords.any? %>
+  <details class="already">
+    <summary>Already in your resume (<%= @tailor_session.present_keywords.size %>)</summary>
+    <ul class="chips">
+      <% @tailor_session.present_keywords.each do |k| %>
+        <li class="chip chip-ok" title="<%= k["resume_evidence"] %>"><%= k["term"] %></li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>
+
+<% if @tailor_session.missing_keywords.empty? %>
+  <div class="card">
+    <p>Your resume already covers everything this posting asks for. Nothing to add.</p>
+  </div>
+<% else %>
+  <%= form_with url: generate_path(@tailor_session), method: :post, class: "card",
+                data: { turbo: false, loading: "Rewriting your resume with the skills you confirmed…" } do %>
+    <p class="form-intro">
+      <strong><%= @tailor_session.missing_keywords.size %> terms</strong> from the posting are missing.
+      For each one you tick, say where you used it — that's what stops the rewrite from
+      guessing which job to attach it to.
+    </p>
+
+    <ul class="kwlist">
+      <% @tailor_session.missing_keywords.each_with_index do |k, i| %>
+        <% prior = @tailor_session.confirmation_for(k["term"]) %>
+        <li class="kw">
+          <%# Keyed by index, not by the term itself — a term like "C++" or "C#"
+              would depend on the browser percent-encoding the field name correctly,
+              and a mismatch would silently reclassify a confirmed skill as rejected. %>
+          <label class="kw-head">
+            <input type="checkbox" name="confirm[<%= i %>][has]" value="1"
+                   data-kw-toggle="<%= i %>" <%= "checked" if prior %>>
+            <span class="kw-term"><%= k["term"] %></span>
+            <span class="tag tag-<%= k["importance"] %>"><%= k["importance"].to_s.tr("_", " ") %></span>
+            <span class="tag tag-cat"><%= k["category"].to_s.tr("_", " ") %></span>
+          </label>
+
+          <% if k["jd_context"].present? %>
+            <p class="kw-context">JD says: &ldquo;<%= k["jd_context"] %>&rdquo;</p>
+          <% end %>
+
+          <div class="kw-note" id="note-<%= i %>" <%= "hidden" unless prior %>>
+            <input type="text" name="confirm[<%= i %>][note]" value="<%= prior&.dig("note") %>"
+                   placeholder="Where did you use it? e.g. &ldquo;Used daily at Acme Corp, 2021–2024, for deployment pipelines&rdquo;">
+            <small>Leave blank and it will only go in your Skills list, not into a job bullet.</small>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+
+    <button type="submit" class="btn btn-primary">
+      <%= @tailor_session.generated? ? "Regenerate with these answers" : "Generate my tailored resume" %>
+    </button>
+    <p class="muted small">Unticked terms are recorded as gaps and are actively blocked from the output.</p>
+  <% end %>
+<% end %>
+
+<script>
+  // Reveal the "where did you use it" box only when the box is ticked.
+  document.querySelectorAll("[data-kw-toggle]").forEach(function (box) {
+    box.addEventListener("change", function () {
+      var note = document.getElementById("note-" + box.dataset.kwToggle);
+      note.hidden = !box.checked;
+      if (box.checked) note.querySelector("input").focus();
+    });
+  });
+</script>

@@ -1,0 +1,74 @@
+<div class="stepline">
+  <span class="step step-done">1 &middot; Input</span>
+  <span class="step step-done">2 &middot; Confirm</span>
+  <span class="step step-on">3 &middot; Download</span>
+</div>
+
+<h1>Your tailored resume</h1>
+
+<div class="coverage">
+  <div class="coverage-bar">
+    <div class="coverage-fill" style="width: <%= @tailor_session.projected_coverage %>%"></div>
+  </div>
+  <span class="coverage-label">
+    <%= @tailor_session.baseline_coverage %>% &rarr; <strong><%= @tailor_session.projected_coverage %>%</strong> JD keyword coverage
+  </span>
+</div>
+
+<div class="downloads">
+  <span class="downloads-label">Download as</span>
+  <%= link_to "DOCX", download_path(@tailor_session, format: "docx"), class: "btn btn-primary" %>
+  <%= link_to "PDF", download_path(@tailor_session, format: "pdf"), class: "btn" %>
+  <%= link_to "Markdown", download_path(@tailor_session, format: "md"), class: "btn" %>
+  <p class="muted small">DOCX parses most reliably in real applicant tracking systems. Use PDF only when a portal demands it.</p>
+</div>
+
+<% changes = Array(@resume["changes"]).compact_blank %>
+<% if changes.any? %>
+  <section class="card changes">
+    <h2>Every change made <span class="count"><%= changes.size %></span></h2>
+    <p class="muted small">Check each one reads true. If anything overstates what you did, edit it after download.</p>
+
+    <% changes.each do |c| %>
+      <div class="change">
+        <div class="change-head">
+          <span class="chip chip-added"><%= c["term"] %></span>
+          <span class="muted small"><%= c["placement"] %></span>
+        </div>
+        <% if c["before"].present? %>
+          <p class="diff diff-before"><%= c["before"] %></p>
+        <% end %>
+        <p class="diff diff-after"><%= c["after"] %></p>
+      </div>
+    <% end %>
+  </section>
+<% end %>
+
+<% if @tailor_session.gaps.any? %>
+  <section class="card gaps">
+    <h2>Gaps for this role <span class="count"><%= @tailor_session.gaps.size %></span></h2>
+    <p class="muted small">
+      You said you don't have these, so they were kept out of the resume entirely.
+      If several are marked critical, this posting may not be worth the application.
+    </p>
+    <ul class="chips">
+      <% @tailor_session.gaps.each do |g| %>
+        <li class="chip chip-gap">
+          <%= g["term"] %>
+          <span class="tag tag-<%= g["importance"] %>"><%= g["importance"].to_s.tr("_", " ") %></span>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
+
+<section class="card">
+  <h2>Preview</h2>
+  <pre class="preview"><%= @markdown %></pre>
+</section>
+
+<p class="footer-links">
+  <%= link_to "&larr; Change what you confirmed and regenerate".html_safe, review_path(@tailor_session), class: "linkish" %>
+  &nbsp;&middot;&nbsp;
+  <%= link_to "Start another", root_path, class: "linkish" %>
+</p>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Resume Tailor</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag "application" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <header class="topbar">
+      <a href="<%= root_path %>" class="brand">Resume&nbsp;Tailor</a>
+      <span class="brand-note">Nothing gets added unless you confirm you have it</span>
+    </header>
+
+    <main>
+      <% if flash[:alert] %>
+        <div class="flash flash-alert"><%= flash[:alert] %></div>
+      <% end %>
+      <% if flash[:notice] %>
+        <div class="flash flash-notice"><%= flash[:notice] %></div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+
+    <div id="loader" class="loader" hidden>
+      <div class="loader-box">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="loader-msg" id="loader-msg" role="status" aria-live="polite">Working…</p>
+        <p class="loader-sub">This calls your AI provider and usually takes 10–30 seconds. Don't close the tab.</p>
+      </div>
+    </div>
+
+    <script>
+      // Full page submits mean the browser sits silently for 10-30s. Show progress.
+      (function () {
+        var loader = document.getElementById("loader");
+        var msg    = document.getElementById("loader-msg");
+
+        document.querySelectorAll("form[data-loading]").forEach(function (form) {
+          form.addEventListener("submit", function () {
+            if (!form.checkValidity()) return;   // let HTML5 validation surface first
+
+            msg.textContent = form.dataset.loading;
+            loader.hidden = false;
+
+            form.querySelectorAll("button[type=submit]").forEach(function (b) {
+              b.disabled = true;                 // block double submits
+            });
+          });
+        });
+
+        // Coming back via the bfcache would otherwise restore a stuck overlay.
+        window.addEventListener("pageshow", function () {
+          loader.hidden = true;
+          document.querySelectorAll("button[type=submit]").forEach(function (b) {
+            b.disabled = false;
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
